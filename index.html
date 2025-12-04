@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="tk">
+<head>
+    <meta charset="UTF-8">
+    <title>School Contest</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { background:#000; color:#fff; font-family: Arial; margin:0; padding:20px; }
+        .card { background:#111; padding:15px; border-radius:10px; margin-bottom:15px; }
+        button { padding:8px 14px; border:none; border-radius:6px; cursor:pointer; }
+        .vote-btn { background:#2196F3; color:#fff; }
+        .delete-btn { background:#e53935; color:#fff; }
+        img { width:100%; border-radius:10px; margin-top:10px; }
+    </style>
+</head>
+
+<body>
+
+<h2>Ýaryşa gatnaşyjylar</h2>
+
+<div id="list"></div>
+
+<hr style="opacity:0.3; margin:20px 0">
+
+<h3>Admin – Täze gatnaşýan goşmak</h3>
+
+<input type="text" id="name" placeholder="Ady" style="width:100%;padding:10px;border-radius:6px;"><br><br>
+<input type="file" id="photo"><br><br>
+<button id="addBtn" class="vote-btn">Goş</button>
+
+<script type="module">
+    // ----------------------------------------------------
+    // 1) Firebase import
+    // ----------------------------------------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot }
+        from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject }
+        from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+
+    // ----------------------------------------------------
+    // 2) SENIŇ FIREBASE DÜZÜLIŞIŇ — ŞU ÝERE GOÝARSYN!!!
+    // ----------------------------------------------------
+    const firebaseConfig = {
+        // 🔥 Diňe şu ýere SÖNKOÝAN konfigurasiýaňy goý !!!
+        apiKey: "",
+        authDomain: "",
+        projectId: "",
+        storageBucket: "schoolcontest-7b928.appspot.com",
+        messagingSenderId: "",
+        appId: ""
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    const listEl = document.getElementById("list");
+
+    // ----------------------------------------------------
+    // 3) REAL-TIME LISTENER — hemme telefonda täzelenýär!
+    // ----------------------------------------------------
+    onSnapshot(collection(db, "contestants"), (snapshot) => {
+        listEl.innerHTML = "";
+        snapshot.forEach((docu) => {
+            const data = docu.data();
+            const id = docu.id;
+
+            listEl.innerHTML += `
+                <div class="card">
+                    <h3>${data.name}</h3>
+                    <img src="${data.photo}" alt="">
+                    <p>Ses: ${data.votes}</p>
+                    <button class="vote-btn" onclick="vote('${id}', ${data.votes})">Ses ber</button>
+                    <button class="delete-btn" onclick="remove('${id}','${data.photo}')">Poz</button>
+                </div>
+            `;
+        });
+    });
+
+    // ----------------------------------------------------
+    // 4) SES BERMEK
+    // ----------------------------------------------------
+    window.vote = async (id, currentVotes) => {
+        await updateDoc(doc(db, "contestants", id), {
+            votes: currentVotes + 1
+        });
+    };
+
+    // ----------------------------------------------------
+    // 5) POZMAK — Firestore + Storage
+    // ----------------------------------------------------
+    window.remove = async (id, img) => {
+        await deleteDoc(doc(db, "contestants", id));
+
+        const fileRef = ref(storage, img);
+        await deleteObject(fileRef);
+    };
+
+    // ----------------------------------------------------
+    // 6) ADMIN – TÄZE GOŞMAK
+    // ----------------------------------------------------
+    const addBtn = document.getElementById("addBtn");
+    addBtn.onclick = async () => {
+        const name = document.getElementById("name").value;
+        const file = document.getElementById("photo").files[0];
+
+        if (!name || !file) {
+            alert("Boş goýma!");
+            return;
+        }
+
+        // Surat Storage-e ýüklemek
+        const storageRef = ref(storage, "photos/" + Date.now() + "_" + file.name);
+        await uploadBytes(storageRef, file);
+        const imgURL = await getDownloadURL(storageRef);
+
+        await addDoc(collection(db, "contestants"), {
+            name: name,
+            photo: imgURL,
+            votes: 0
+        });
+
+        alert("Goşuldy!");
+        document.getElementById("name").value = "";
+        document.getElementById("photo").value = "";
+    };
+</script>
+
+</body>
+</html>
